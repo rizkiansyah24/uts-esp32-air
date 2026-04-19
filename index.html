@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Water Tank Dashboard</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f3f4f6;
+      padding: 20px;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 20px;
+    }
+
+    #mqttStatus {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #ef4444;
+      color: white;
+      font-weight: bold;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .card,
+    .switch-card,
+    .panel {
+      background: white;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .card h3,
+    .panel h3 {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+
+    .value {
+      font-size: 34px;
+      font-weight: bold;
+    }
+
+    #waterStatus {
+      margin-top: 10px;
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #3b82f6;
+      color: white;
+      font-size: 14px;
+    }
+
+    .led-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .led-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f9fafb;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .led-status {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #9ca3af;
+    }
+
+    .led-status.active {
+      background: #22c55e;
+    }
+
+    .switch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .switch-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .switch {
+      position: relative;
+      width: 54px;
+      height: 30px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #d1d5db;
+      border-radius: 30px;
+      transition: .3s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 4px;
+      bottom: 4px;
+      background: white;
+      border-radius: 50%;
+      transition: .3s;
+    }
+
+    input:checked + .slider {
+      background: #22c55e;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+
+    .panel {
+      margin-bottom: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .refresh-btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .refresh-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .monitor-box {
+      background: #111827;
+      color: #4ade80;
+      border-radius: 10px;
+      padding: 12px;
+      height: 220px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Smart Water Tank Dashboard</h1>
+    <div class="subtitle">Monitoring dan kontrol ESP32 melalui MQTT dan HTTP</div>
+
+    <div id="mqttStatus">● Belum Terhubung</div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Jarak Air</h3>
+        <div class="value"><span id="distance">0</span> cm</div>
+      </div>
+
+      <div class="card">
+        <h3>Status Air</h3>
+        <div class="value" id="waterText">-</div>
+        <div id="waterStatus">Menunggu Data</div>
+      </div>
+
+      <div class="card">
+        <h3>Status LED</h3>
+        <div class="led-grid">
+          <div class="led-item">LED 1 <div class="led-status" id="dot1"></div></div>
+          <div class="led-item">LED 2 <div class="led-status" id="dot2"></div></div>
+          <div class="led-item">LED 3 <div class="led-status" id="dot3"></div></div>
+          <div class="led-item">LED 4 <div class="led-status" id="dot4"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="switch-grid">
+      <div class="switch-card">
+        <span>LED 1</span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleLED(1, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="switch-card">
+        <span>LED 2</span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleLED(2, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="switch-card">
+        <span>LED 3</span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleLED(3, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="switch-card">
+        <span>LED 4</span>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleLED(4, this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Histori Monitoring</h3>
+        <button class="refresh-btn" onclick="loadHistory()">Refresh</button>
+      </div>
+
+      <div id="historyBody" class="monitor-box">
+Menunggu data...
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Log MQTT</h3>
+      <div id="log" class="monitor-box"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
